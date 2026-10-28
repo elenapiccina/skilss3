@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Goals — Strawberry & Nude Aesthetic</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Playfair Display (400) for non-bold serif titles, Plus Jakarta Sans (300 & 400) for clean text -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js" crossorigin="anonymous"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Playfair Display"', 'Georgia', 'serif'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #f8ebeb;
+            min-height: 100vh;
+            color: #6a4c5a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
+        }
+
+        /* Subtle gentle floating motion */
+        @keyframes gentleFloat1 { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-2.5px); } }
+        @keyframes gentleFloat2 { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-3px); } }
+        @keyframes gentleFloat3 { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-2px); } }
+
+        .float-1 { animation: gentleFloat1 5s ease-in-out infinite; }
+        .float-2 { animation: gentleFloat2 6.5s ease-in-out infinite; }
+        .float-3 { animation: gentleFloat3 5.8s ease-in-out infinite; }
+
+        /* Distinct Category Task Backgrounds & Borders */
+        .card-quick {
+            background-color: #FEF9E7;
+            border: 1px solid #F7EBB8;
+            box-shadow: 0 2px 8px rgba(245, 230, 170, 0.2);
+        }
+        .card-small {
+            background-color: #EEF7F1;
+            border: 1px solid #CDE8D5;
+            box-shadow: 0 2px 8px rgba(200, 230, 210, 0.2);
+        }
+        .card-big {
+            background-color: #F0F1FA;
+            border: 1px solid #D6DAF0;
+            box-shadow: 0 2px 8px rgba(210, 215, 240, 0.2);
+        }
+        .card-future {
+            background-color: #F5EFEB; /* Soft Elegant Nude / Taupe Tone */
+            border: 1px solid #E3D8CE;
+            box-shadow: 0 2px 8px rgba(220, 210, 200, 0.25);
+        }
+
+        /* Flower Blossom Glow */
+        .flower-btn {
+            opacity: 0.35;
+            filter: grayscale(40%);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .flower-btn.active {
+            opacity: 1;
+            filter: grayscale(0%) drop-shadow(0 0 6px rgba(255, 180, 200, 0.8));
+            transform: scale(1.15);
+        }
+
+        /* Editable inline focus styling */
+        [contenteditable]:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 4px;
+            padding: 0 4px;
+        }
+
+        /* Custom subtle scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e8d0d8; border-radius: 10px; }
+    </style>
+</head>
+<body class="selection:bg-pink-100 selection:text-pink-900">
+
+    <!-- Compact Main Container -->
+    <div class="w-full max-w-lg rounded-[26px] bg-white/80 backdrop-blur-md border border-white/80 shadow-lg p-4 sm:p-5 flex flex-col gap-3">
+        
+        <!-- Header Row -->
+        <div class="flex items-baseline justify-between px-1">
+            <div class="flex items-baseline gap-2">
+                <h1 class="font-serif text-2xl sm:text-3xl font-normal text-[#4a3540] tracking-tight">My Goals</h1>
+                <span class="font-sans font-light text-xs sm:text-sm text-[#8c6d7a] italic">small steps → big life</span>
+            </div>
+            <div class="text-[11px] font-light text-[#9e808d] bg-[#f8ebeb] px-2.5 py-0.5 rounded-full" id="total-count-badge">
+                0 items
+            </div>
+        </div>
+
+        <!-- Ultra-Compact Add Goal Card -->
+        <div class="rounded-2xl bg-[#FCF8F6] border border-[#EFE4DE] p-2.5 flex flex-col gap-2">
+            <input type="text" id="goal-input" placeholder="What do you want to make happen?" 
+                   class="w-full bg-transparent font-sans font-light text-xs sm:text-sm text-[#5a424e] placeholder-[#b096a1] outline-none px-1"
+                   onkeydown="if(event.key==='Enter') addGoal()">
+
+            <div class="flex items-center justify-between gap-1.5 pt-0.5">
+                <!-- Category Selectors -->
+                <div class="flex items-center gap-1 overflow-x-auto py-0.5 no-scrollbar">
+                    <button type="button" onclick="selectCategory('quick')" id="cat-btn-quick" 
+                            class="cat-select-btn text-[11px] font-normal px-2 py-0.5 rounded-full bg-[#FEF9E7] text-[#8a721a] border border-[#F7EBB8] transition-all">
+                        🍋 Quick
+                    </button>
+                    <button type="button" onclick="selectCategory('small')" id="cat-btn-small" 
+                            class="cat-select-btn text-[11px] font-normal px-2 py-0.5 rounded-full bg-[#EEF7F1] text-[#3b734c] border border-[#CDE8D5] transition-all ring-1 ring-[#88c499]">
+                        🥑 Small
+                    </button>
+                    <button type="button" onclick="selectCategory('big')" id="cat-btn-big" 
+                            class="cat-select-btn text-[11px] font-normal px-2 py-0.5 rounded-full bg-[#F0F1FA] text-[#3e4882] border border-[#D6DAF0] transition-all">
+                        🫐 Big
+                    </button>
+                    <button type="button" onclick="selectCategory('future')" id="cat-btn-future" 
+                            class="cat-select-btn text-[11px] font-normal px-2 py-0.5 rounded-full bg-[#F5EFEB] text-[#705e54] border border-[#E3D8CE] transition-all">
+                        ☕️ Future
+                    </button>
+                </div>
+
+                <!-- Add Button -->
+                <button onclick="addGoal()" class="bg-[#3e383b] hover:bg-[#282426] text-white font-sans font-light text-xs px-3 py-1 rounded-full transition-colors flex-shrink-0">
+                    + Add
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Pill Bar -->
+        <div class="flex items-center gap-1 overflow-x-auto pb-0.5 text-xs font-light text-[#7a5e6a]">
+            <button onclick="setFilter('all')" id="filter-all" class="filter-pill px-2.5 py-0.5 rounded-full bg-[#3e383b] text-white transition-all">All</button>
+            <button onclick="setFilter('quick')" id="filter-quick" class="filter-pill px-2.5 py-0.5 rounded-full bg-white/60 hover:bg-white transition-all">🍋 Quick</button>
+            <button onclick="setFilter('small')" id="filter-small" class="filter-pill px-2.5 py-0.5 rounded-full bg-white/60 hover:bg-white transition-all">🥑 Small</button>
+            <button onclick="setFilter('big')" id="filter-big" class="filter-pill px-2.5 py-0.5 rounded-full bg-white/60 hover:bg-white transition-all">🫐 Big</button>
+            <button onclick="setFilter('future')" id="filter-future" class="filter-pill px-2.5 py-0.5 rounded-full bg-white/60 hover:bg-white transition-all">☕️ Future</button>
+            <button onclick="setFilter('done')" id="filter-done" class="filter-pill px-2.5 py-0.5 rounded-full bg-white/60 hover:bg-white transition-all">✓ Done</button>
+        </div>
+
+        <!-- Goal List Container -->
+        <div id="goals-container" class="flex flex-col gap-2 max-h-[55vh] overflow-y-auto pr-0.5">
+            <!-- Dynamic Goals Render Here -->
+        </div>
+
+    </div>
+
+    <script>
+        const categories = {
+            quick: { label: '🍋 Quick', cardClass: 'card-quick', textColor: '#6e5a17' },
+            small: { label: '🥑 Small', cardClass: 'card-small', textColor: '#2d593a' },
+            big: { label: '🫐 Big', cardClass: 'card-big', textColor: '#2e386b' },
+            future: { label: '☕️ Future', cardClass: 'card-future', textColor: '#5c4b42' }
+        };
+
+        const defaultGoals = [
+            { id: 1, title: "MAKE UP", category: "small", micro: "Gather makeup bag and clean brushes", done: false },
+            { id: 2, title: "DATING все сайты открыть", category: "small", micro: "Open laptop tab and update 1 photo", done: false },
+            { id: 3, title: "my digital products, notion on sale", category: "big", micro: "Write short template title in Notion", done: false },
+            { id: 4, title: "Morning matcha ritual", category: "quick", micro: "Heat water for 1 minute", done: true },
+            { id: 5, title: "Design autumn capsule wardrobe", category: "future", micro: "Save 3 Pinterest outfits", done: false }
+        ];
+
+        let state = loadData();
+        let activeCategoryToAdd = 'small';
+        let activeFilter = 'all';
+
+        function loadData() {
+            const saved = localStorage.getItem('my_aesthetic_goals_v2');
+            if (saved) {
+                try { return JSON.parse(saved); } catch (e) {}
+            }
+            return defaultGoals;
+        }
+
+        function saveData() {
+            localStorage.setItem('my_aesthetic_goals_v2', JSON.stringify(state));
+            render();
+        }
+
+        function selectCategory(cat) {
+            activeCategoryToAdd = cat;
+            document.querySelectorAll('.cat-select-btn').forEach(btn => {
+                btn.classList.remove('ring-1', 'ring-[#88c499]', 'ring-[#88a0c4]', 'ring-[#c4b588]', 'ring-[#b5a396]');
+            });
+            const selectedBtn = document.getElementById(`cat-btn-${cat}`);
+            if (selectedBtn) {
+                selectedBtn.classList.add('ring-1', 'ring-[#705e54]');
+            }
+        }
+
+        function setFilter(filter) {
+            activeFilter = filter;
+            document.querySelectorAll('.filter-pill').forEach(btn => {
+                btn.classList.remove('bg-[#3e383b]', 'text-white');
+                btn.classList.add('bg-white/60', 'text-[#7a5e6a]');
+            });
+            const activeBtn = document.getElementById(`filter-${filter}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-[#3e383b]', 'text-white');
+                activeBtn.classList.remove('bg-white/60', 'text-[#7a5e6a]');
+            }
+            render();
+        }
+
+        function addGoal() {
+            const input = document.getElementById('goal-input');
+            const title = input.value.trim();
+            if (!title) return;
+
+            const newGoal = {
+                id: Date.now(),
+                title: title,
+                category: activeCategoryToAdd,
+                micro: "Add a 2-minute step...",
+                done: false
+            };
+
+            state.unshift(newGoal);
+            input.value = '';
+            saveData();
+        }
+
+        function toggleComplete(id, e) {
+            if (e) e.stopPropagation();
+            const goal = state.find(g => g.id === id);
+            if (goal) {
+                goal.done = !goal.done;
+                if (goal.done) {
+                    confetti({
+                        particleCount: 20,
+                        spread: 35,
+                        origin: { y: 0.7 },
+                        colors: ['#F9D8E4', '#EEF7F1', '#FEF9E7', '#F5EFEB']
+                    });
+                }
+                saveData();
+            }
+        }
+
+        function deleteGoal(id, e) {
+            if (e) e.stopPropagation();
+            state = state.filter(g => g.id !== id);
+            saveData();
+        }
+
+        function updateGoalTitle(id, text) {
+            const goal = state.find(g => g.id === id);
+            if (goal) {
+                goal.title = text.trim() || "Untitled Goal";
+                localStorage.setItem('my_aesthetic_goals_v2', JSON.stringify(state));
+            }
+        }
+
+        function updateGoalMicro(id, text) {
+            const goal = state.find(g => g.id === id);
+            if (goal) {
+                goal.micro = text.trim() || "Add a 2-minute step...";
+                localStorage.setItem('my_aesthetic_goals_v2', JSON.stringify(state));
+            }
+        }
+
+        function toggleDrawer(id, e) {
+            if (e) e.stopPropagation();
+            const drawer = document.getElementById(`drawer-${id}`);
+            if (drawer) drawer.classList.toggle('hidden');
+        }
+
+        function render() {
+            const container = document.getElementById('goals-container');
+            container.innerHTML = '';
+
+            let filtered = state;
+            if (activeFilter === 'done') {
+                filtered = state.filter(g => g.done);
+            } else if (activeFilter !== 'all') {
+                filtered = state.filter(g => g.category === activeFilter && !g.done);
+            }
+
+            // Update Total Counter
+            document.getElementById('total-count-badge').innerText = `${state.filter(g => !g.done).length} active`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 font-serif text-sm text-[#a88d98] italic">
+                        No goals found in this view ~ ✨
+                    </div>`;
+                return;
+            }
+
+            // Group by category if filter is 'all'
+            const groups = (activeFilter === 'all') 
+                ? ['quick', 'small', 'big', 'future'] 
+                : [activeFilter];
+
+            const floatClasses = ['float-1', 'float-2', 'float-3'];
+
+            groups.forEach(catKey => {
+                const catGoals = filtered.filter(g => activeFilter === 'done' || g.category === catKey);
+                if (catGoals.length === 0) return;
+
+                const catInfo = categories[catKey] || categories.small;
+
+                // Section Header (only if 'all' filter or 'done' view)
+                if (activeFilter === 'all' || activeFilter === 'done') {
+                    const headerEl = document.createElement('div');
+                    headerEl.className = 'flex items-center gap-2 pt-1 pb-0.5 px-1';
+                    headerEl.innerHTML = `
+                        <span class="font-sans font-normal text-xs text-[#6e5662]">${catInfo.label}</span>
+                        <span class="text-[10px] font-light text-[#a38895] bg-white/80 px-2 py-0.2 rounded-full">${catGoals.length}</span>
+                        <div class="flex-grow h-[1px] bg-[#ebd8de]"></div>
+                    `;
+                    container.appendChild(headerEl);
+                }
+
+                catGoals.forEach((goal, idx) => {
+                    const card = document.createElement('div');
+                    const floatClass = floatClasses[idx % floatClasses.length];
+                    const catData = categories[goal.category] || categories.small;
+
+                    card.className = `rounded-2xl px-3.5 py-2.5 ${catData.cardClass} ${floatClass} transition-all duration-200 group`;
+                    
+                    if (goal.done) {
+                        card.classList.add('opacity-55');
+                    }
+
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2.5 flex-grow min-w-0" onclick="toggleComplete(${goal.id}, event)">
+                                <span class="text-xs flex-shrink-0">${catData.label.split(' ')[0]}</span>
+                                <div class="flex-grow min-w-0">
+                                    <h2 contenteditable="true" 
+                                        onblur="updateGoalTitle(${goal.id}, this.innerText)" 
+                                        onclick="event.stopPropagation()" 
+                                        class="font-serif text-sm sm:text-base font-normal text-[#42333b] ${goal.done ? 'line-through text-[#8c7480]' : ''} outline-none truncate leading-tight">
+                                        ${goal.title}
+                                    </h2>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <button onclick="toggleDrawer(${goal.id}, event)" class="text-[10px] font-light text-[#7a606d] bg-white/70 hover:bg-white px-2 py-0.5 rounded-full transition-colors flex items-center gap-0.5">
+                                    <span>⚡ step</span>
+                                </button>
+                                <button onclick="toggleComplete(${goal.id}, event)" class="flower-btn text-base ${goal.done ? 'active' : ''} hover:scale-110 transition-transform">
+                                    🌸
+                                </button>
+                                <button onclick="deleteGoal(${goal.id}, event)" class="text-xs text-[#b89ca8] hover:text-[#785060] opacity-0 group-hover:opacity-100 transition-opacity px-1">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 2-Min Micro Task Drawer -->
+                        <div id="drawer-${goal.id}" class="hidden mt-2 pt-1.5 border-t border-black/5 text-xs">
+                            <div class="text-[9px] uppercase font-light tracking-wider text-[#8a707c] mb-0.5">2-Min Micro Step:</div>
+                            <div contenteditable="true" 
+                                 onblur="updateGoalMicro(${goal.id}, this.innerText)" 
+                                 class="font-sans font-light text-xs text-[#523e47] bg-white/60 p-1.5 rounded-lg outline-none">
+                                ${goal.micro}
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            });
+        }
+
+        window.onload = function() {
+            render();
+        };
+    </script>
+</body>
+</html>
