@@ -166,19 +166,19 @@
         }
 
         /* Contenteditable focus glow */
-        [contenteditable]:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 4px;
-            box-shadow: 0 0 0 2px rgba(224, 122, 147, 0.3);
-            padding: 1px 4px;
-        }
-
-        /* Scrollbar */
+        /* Custom subtle scrollbar */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(224, 122, 147, 0.3); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(224, 122, 147, 0.5); }
+
+        /* Smooth scrolling physics & containment to prevent UI layout jumps */
+        #goals-container {
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            will-change: transform, scroll-position;
+        }
 
         #water-canvas {
             position: fixed;
@@ -395,11 +395,15 @@
             const goal = state.find(g => g.id === id);
             if (goal && goal.category !== newCategory) {
                 goal.category = newCategory;
+                // Preserve scroll position during category shift
+                const container = document.getElementById('goals-container');
+                const scrollPos = container.scrollTop;
                 saveData();
+                container.scrollTop = scrollPos;
             }
         }
 
-        // Drag and Drop Event Handlers
+        // Drag and Drop Event Handlers optimized for zero layout jitter
         function handleDragStart(e, id) {
             draggedGoalId = id;
             e.dataTransfer.setData('text/plain', id.toString());
@@ -432,7 +436,10 @@
             const goal = state.find(g => g.id === id);
             if (goal && goal.category !== targetCategory) {
                 goal.category = targetCategory;
+                const container = document.getElementById('goals-container');
+                const scrollPos = container.scrollTop;
                 saveData();
+                container.scrollTop = scrollPos;
             }
         }
 
