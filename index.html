@@ -69,6 +69,7 @@
                 inset 0 -2px 6px 0 rgba(224, 122, 147, 0.08);
             position: relative;
             overflow: hidden;
+            transform: translateZ(0);
         }
 
         /* Dynamic Liquid Refraction Highlight overlay */
@@ -95,31 +96,33 @@
             -webkit-backdrop-filter: blur(14px) saturate(160%);
             border-top: 1px solid rgba(255, 255, 255, 0.9) !important;
             border-left: 1px solid rgba(255, 255, 255, 0.8) !important;
-            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+            will-change: transform;
+            contain: layout style;
         }
 
         .glass-card:hover {
-            transform: translateY(-2px) scale(1.003);
-            box-shadow: 0 8px 20px -4px rgba(224, 122, 147, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.95);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px -2px rgba(224, 122, 147, 0.18);
         }
 
-        /* Drag & Drop Visuals */
+        /* Drag & Drop Visuals without jitter */
         .glass-card[draggable="true"] {
             cursor: grab;
+            touch-action: pan-y;
         }
         .glass-card.dragging {
-            opacity: 0.35;
-            transform: scale(0.98);
+            opacity: 0.3;
+            transform: scale(0.97);
         }
         .category-dropzone {
-            min-height: 48px;
-            transition: all 0.2s ease;
+            min-height: 38px;
             border-radius: 14px;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
         }
         .category-dropzone.drag-over {
             background: rgba(255, 255, 255, 0.55);
             border: 2px dashed rgba(224, 122, 147, 0.6);
-            box-shadow: inset 0 0 10px rgba(224, 122, 147, 0.15);
         }
 
         /* Category Card Tone Variations with Glass Gloss */
@@ -140,44 +143,40 @@
             border: 1px solid rgba(227, 216, 206, 0.8);
         }
 
-        /* Subtle gentle floating motion */
-        @keyframes gentleFloat1 { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-2px); } }
-        @keyframes gentleFloat2 { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-2.5px); } }
-        @keyframes gentleFloat3 { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-1.5px); } }
-
-        .float-1 { animation: gentleFloat1 6s ease-in-out infinite; }
-        .float-2 { animation: gentleFloat2 7.5s ease-in-out infinite; }
-        .float-3 { animation: gentleFloat3 6.8s ease-in-out infinite; }
-
-        /* Flower Blossom Glowing Button */
+        /* Static subtle hover glow without bouncing float keyframes */
         .flower-btn {
             opacity: 0.5;
             filter: grayscale(25%);
-            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: all 0.2s ease;
         }
         .flower-btn:hover {
             opacity: 0.9;
-            transform: scale(1.15) rotate(10deg);
+            transform: scale(1.1);
         }
         .flower-btn.active {
             opacity: 1;
-            filter: grayscale(0%) drop-shadow(0 0 8px rgba(247, 180, 200, 0.9));
-            transform: scale(1.18);
+            filter: grayscale(0%) drop-shadow(0 0 6px rgba(247, 180, 200, 0.9));
+            transform: scale(1.15);
         }
 
-        /* Contenteditable focus glow */
-        /* Custom subtle scrollbar */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(224, 122, 147, 0.3); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(224, 122, 147, 0.5); }
-
-        /* Smooth scrolling physics & containment to prevent UI layout jumps */
+        /* Smooth scrolling physics & fixed layout containment */
         #goals-container {
-            scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
-            will-change: transform, scroll-position;
+            contain: layout style scroll-port;
+        }
+
+        /* Micro step animation drawer */
+        .drawer-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.25s cubic-bezier(0, 1, 0, 1), opacity 0.2s ease;
+            opacity: 0;
+        }
+        .drawer-content.open {
+            max-height: 120px;
+            opacity: 1;
+            transition: max-height 0.25s ease-in-out, opacity 0.25s ease-in-out;
         }
 
         #water-canvas {
@@ -290,16 +289,27 @@
         let draggedGoalId = null;
 
         function loadData() {
-            const saved = localStorage.getItem('my_aesthetic_goals_v3');
+            const saved = localStorage.getItem('my_aesthetic_goals_v4');
             if (saved) {
                 try { return JSON.parse(saved); } catch (e) {}
             }
             return defaultGoals;
         }
 
+        function saveDataSilent() {
+            localStorage.setItem('my_aesthetic_goals_v4', JSON.stringify(state));
+            updateActiveBadge();
+        }
+
         function saveData() {
-            localStorage.setItem('my_aesthetic_goals_v3', JSON.stringify(state));
+            saveDataSilent();
             render();
+        }
+
+        function updateActiveBadge() {
+            const activeCount = state.filter(g => !g.done).length;
+            const badge = document.getElementById('total-count-badge');
+            if (badge) badge.innerText = `${activeCount} active`;
         }
 
         function selectCategory(cat) {
@@ -365,14 +375,23 @@
         function deleteGoal(id, e) {
             if (e) e.stopPropagation();
             state = state.filter(g => g.id !== id);
-            saveData();
+            
+            // Fast visual removal without layout flash
+            const cardEl = document.getElementById(`goal-card-${id}`);
+            if (cardEl) {
+                cardEl.style.transform = 'scale(0.9)';
+                cardEl.style.opacity = '0';
+                setTimeout(() => saveData(), 150);
+            } else {
+                saveData();
+            }
         }
 
         function updateGoalTitle(id, text) {
             const goal = state.find(g => g.id === id);
             if (goal) {
                 goal.title = text.trim() || "Untitled Goal";
-                localStorage.setItem('my_aesthetic_goals_v3', JSON.stringify(state));
+                saveDataSilent();
             }
         }
 
@@ -380,14 +399,16 @@
             const goal = state.find(g => g.id === id);
             if (goal) {
                 goal.micro = text.trim() || "Add a 2-minute step...";
-                localStorage.setItem('my_aesthetic_goals_v3', JSON.stringify(state));
+                saveDataSilent();
             }
         }
 
         function toggleDrawer(id, e) {
             if (e) e.stopPropagation();
             const drawer = document.getElementById(`drawer-${id}`);
-            if (drawer) drawer.classList.toggle('hidden');
+            if (drawer) {
+                drawer.classList.toggle('open');
+            }
         }
 
         function changeGoalCategory(id, newCategory, e) {
@@ -395,20 +416,20 @@
             const goal = state.find(g => g.id === id);
             if (goal && goal.category !== newCategory) {
                 goal.category = newCategory;
-                // Preserve scroll position during category shift
-                const container = document.getElementById('goals-container');
-                const scrollPos = container.scrollTop;
                 saveData();
-                container.scrollTop = scrollPos;
             }
         }
 
-        // Drag and Drop Event Handlers optimized for zero layout jitter
+        // Smooth Drag & Drop implementation without rebuilding DOM mid-drag
         function handleDragStart(e, id) {
             draggedGoalId = id;
             e.dataTransfer.setData('text/plain', id.toString());
             e.dataTransfer.effectAllowed = 'move';
-            e.currentTarget.classList.add('dragging');
+            
+            // Minimal immediate visual change
+            requestAnimationFrame(() => {
+                e.target.classList.add('dragging');
+            });
         }
 
         function handleDragEnd(e) {
@@ -420,11 +441,17 @@
         function handleDragOver(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
-            e.currentTarget.classList.add('drag-over');
+            const dropzone = e.currentTarget;
+            if (!dropzone.classList.contains('drag-over')) {
+                dropzone.classList.add('drag-over');
+            }
         }
 
         function handleDragLeave(e) {
-            e.currentTarget.classList.remove('drag-over');
+            const rect = e.currentTarget.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom) {
+                e.currentTarget.classList.remove('drag-over');
+            }
         }
 
         function handleDrop(e, targetCategory) {
@@ -436,15 +463,14 @@
             const goal = state.find(g => g.id === id);
             if (goal && goal.category !== targetCategory) {
                 goal.category = targetCategory;
-                const container = document.getElementById('goals-container');
-                const scrollPos = container.scrollTop;
                 saveData();
-                container.scrollTop = scrollPos;
             }
         }
 
         function render() {
             const container = document.getElementById('goals-container');
+            const currentScrollTop = container.scrollTop;
+
             container.innerHTML = '';
 
             let filtered = state;
@@ -454,8 +480,7 @@
                 filtered = state.filter(g => g.category === activeFilter && !g.done);
             }
 
-            const activeCount = state.filter(g => !g.done).length;
-            document.getElementById('total-count-badge').innerText = `${activeCount} active`;
+            updateActiveBadge();
 
             if (filtered.length === 0) {
                 container.innerHTML = `
@@ -469,15 +494,13 @@
                 ? ['quick', 'small', 'big', 'future'] 
                 : [activeFilter];
 
-            const floatClasses = ['float-1', 'float-2', 'float-3'];
-
             groups.forEach(catKey => {
                 const catGoals = filtered.filter(g => activeFilter === 'done' || g.category === catKey);
                 const catInfo = categories[catKey] || categories.small;
 
-                // Section Wrapper & Header (always rendered in section mode for easy drop targets)
+                // Section Wrapper
                 const sectionEl = document.createElement('div');
-                sectionEl.className = 'flex flex-col gap-1.5 mb-1';
+                sectionEl.className = 'flex flex-col gap-1 mb-1';
 
                 if (activeFilter === 'all' || activeFilter === 'done') {
                     sectionEl.innerHTML = `
@@ -485,14 +508,13 @@
                             <span class="font-sans font-medium text-[10px] tracking-wide text-[#6e5662] uppercase">${catInfo.label}</span>
                             <span class="text-[9px] font-light text-[#8c6d7a] bg-white/80 px-1.5 py-0.2 rounded-full">${catGoals.length}</span>
                             <div class="flex-grow h-[1px] bg-gradient-to-r from-white/80 to-transparent"></div>
-                            <span class="text-[9px] font-light text-[#a88d98] italic hidden sm:inline">drag items here ↘</span>
                         </div>
                     `;
                 }
 
                 // Dropzone area for goals in this category
                 const dropzone = document.createElement('div');
-                dropzone.className = 'category-dropzone flex flex-col gap-2 p-1';
+                dropzone.className = 'category-dropzone flex flex-col gap-1.5 p-0.5';
                 dropzone.ondragover = handleDragOver;
                 dropzone.ondragleave = handleDragLeave;
                 dropzone.ondrop = (e) => handleDrop(e, catKey);
@@ -504,12 +526,12 @@
                         </div>`;
                 }
 
-                catGoals.forEach((goal, idx) => {
+                catGoals.forEach((goal) => {
                     const card = document.createElement('div');
-                    const floatClass = floatClasses[idx % floatClasses.length];
                     const catData = categories[goal.category] || categories.small;
 
-                    card.className = `glass-card rounded-xl p-2.5 ${catData.cardClass} ${floatClass} transition-all duration-200 group relative`;
+                    card.id = `goal-card-${goal.id}`;
+                    card.className = `glass-card rounded-xl p-2.5 ${catData.cardClass} group relative`;
                     card.setAttribute('draggable', 'true');
                     card.ondragstart = (e) => handleDragStart(e, goal.id);
                     card.ondragend = handleDragEnd;
@@ -518,7 +540,6 @@
                         card.classList.add('opacity-60');
                     }
 
-                    // Options for changing category via dropdown tag click
                     const otherCats = Object.keys(categories)
                         .map(k => `<option value="${k}" ${k === goal.category ? 'selected' : ''}>${categories[k].label}</option>`)
                         .join('');
@@ -526,10 +547,9 @@
                     card.innerHTML = `
                         <div class="flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2 flex-grow min-w-0 cursor-pointer" onclick="toggleComplete(${goal.id}, event)">
-                                <!-- Category Select Badge -->
                                 <div class="flex-shrink-0 relative group/select" onclick="event.stopPropagation()">
                                     <select onchange="changeGoalCategory(${goal.id}, this.value, event)" 
-                                            class="appearance-none text-[10px] bg-white/80 hover:bg-white text-[#4a3540] font-medium px-2 py-0.5 pr-3.5 rounded-lg shadow-2xs border border-white/90 outline-none cursor-pointer transition-all">
+                                            class="appearance-none text-[10px] bg-white/80 hover:bg-white text-[#4a3540] font-medium px-2 py-0.5 pr-3 rounded-lg shadow-2xs border border-white/90 outline-none cursor-pointer transition-all">
                                         ${otherCats}
                                     </select>
                                     <span class="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-[#7a5e6a] pointer-events-none">▾</span>
@@ -545,8 +565,8 @@
                                 </div>
                             </div>
 
-                            <div class="flex items-center gap-1.5 flex-shrink-0">
-                                <span class="text-[10px] text-[#9c828e] cursor-grab active:cursor-grabbing px-1 opacity-60 hover:opacity-100" title="Drag to reorder section">⋮⋮</span>
+                            <div class="flex items-center gap-1 flex-shrink-0">
+                                <span class="text-[10px] text-[#9c828e] cursor-grab active:cursor-grabbing px-1 opacity-50 hover:opacity-100" title="Drag to move section">⋮⋮</span>
                                 <button onclick="toggleDrawer(${goal.id}, event)" class="text-[10px] font-light text-[#6e5662] bg-white/80 hover:bg-white px-2 py-0.5 rounded-full shadow-2xs transition-all flex items-center gap-0.5 border border-white/60">
                                     <span>⚡ step</span>
                                 </button>
@@ -559,13 +579,15 @@
                             </div>
                         </div>
 
-                        <!-- Micro Step Drawer -->
-                        <div id="drawer-${goal.id}" class="hidden mt-2 pt-1.5 border-t border-black/5 text-[11px]">
-                            <div class="text-[9px] uppercase font-medium tracking-wider text-[#8a707c] mb-0.5">⚡ 2-Min Micro Step:</div>
-                            <div contenteditable="true" 
-                                 onblur="updateGoalMicro(${goal.id}, this.innerText)" 
-                                 class="font-sans font-light text-xs text-[#523e47] bg-white/70 backdrop-blur-sm p-1.5 rounded-lg border border-white/80 outline-none">
-                                ${goal.micro}
+                        <!-- Smooth Animated Micro Step Drawer -->
+                        <div id="drawer-${goal.id}" class="drawer-content mt-1 text-[11px]">
+                            <div class="pt-1 border-t border-black/5">
+                                <div class="text-[9px] uppercase font-medium tracking-wider text-[#8a707c] mb-0.5">⚡ 2-Min Micro Step:</div>
+                                <div contenteditable="true" 
+                                     onblur="updateGoalMicro(${goal.id}, this.innerText)" 
+                                     class="font-sans font-light text-xs text-[#523e47] bg-white/70 backdrop-blur-sm p-1.5 rounded-lg border border-white/80 outline-none">
+                                    ${goal.micro}
+                                </div>
                             </div>
                         </div>
                     `;
@@ -575,9 +597,12 @@
                 sectionEl.appendChild(dropzone);
                 container.appendChild(sectionEl);
             });
+
+            // Restore scroll position cleanly
+            container.scrollTop = currentScrollTop;
         }
 
-        // Animated Glass Water Caustics & Bubbles Canvas
+        // Animated Glass Water Canvas Backdrop
         const canvas = document.getElementById('water-canvas');
         const ctx = canvas.getContext('2d');
         let width = canvas.width = window.innerWidth;
@@ -595,15 +620,15 @@
             constructor(x, y, radius = null) {
                 this.x = x || Math.random() * width;
                 this.y = y || Math.random() * height;
-                this.radius = radius || Math.random() * 16 + 6;
-                this.vx = (Math.random() - 0.5) * 0.3;
-                this.vy = -Math.random() * 0.5 - 0.2;
-                this.alpha = Math.random() * 0.4 + 0.25;
+                this.radius = radius || Math.random() * 14 + 5;
+                this.vx = (Math.random() - 0.5) * 0.2;
+                this.vy = -Math.random() * 0.4 - 0.15;
+                this.alpha = Math.random() * 0.35 + 0.2;
                 this.color = ['#f7d0dc', '#EEF7F1', '#FEF9E7', '#e8dbd0'][Math.floor(Math.random() * 4)];
             }
 
             update() {
-                this.x += this.vx + Math.sin(waveTime + this.y * 0.01) * 0.2;
+                this.x += this.vx + Math.sin(waveTime + this.y * 0.01) * 0.15;
                 this.y += this.vy;
                 if (this.y < -20) {
                     this.y = height + 20;
@@ -612,55 +637,52 @@
             }
 
             draw() {
-                // Glass bubble body
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.alpha * 0.35;
+                ctx.globalAlpha = this.alpha * 0.3;
                 ctx.fill();
 
-                // Liquid ring edge
                 ctx.lineWidth = 1;
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                 ctx.stroke();
 
-                // Refractive highlight arc
                 ctx.beginPath();
                 ctx.arc(this.x - this.radius * 0.3, this.y - this.radius * 0.3, this.radius * 0.3, 0, Math.PI * 2);
                 ctx.fillStyle = '#ffffff';
-                ctx.globalAlpha = this.alpha * 0.85;
+                ctx.globalAlpha = this.alpha * 0.7;
                 ctx.fill();
                 ctx.globalAlpha = 1;
             }
         }
 
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 15; i++) {
             bubbles.push(new WaterBubble());
         }
 
         function addWaterBubble(x, y, size) {
-            for (let i = 0; i < 5; i++) {
-                const b = new WaterBubble(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 20, size * 0.35);
-                b.vy = (Math.random() - 0.5) * 1.5;
+            for (let i = 0; i < 4; i++) {
+                const b = new WaterBubble(x + (Math.random() - 0.5) * 15, y + (Math.random() - 0.5) * 15, size * 0.3);
+                b.vy = (Math.random() - 0.5) * 1.2;
                 bubbles.push(b);
-                if (bubbles.length > 35) bubbles.shift();
+                if (bubbles.length > 25) bubbles.shift();
             }
         }
 
         function triggerSplashEffect() {
-            addWaterBubble(width / 2, height / 2, 45);
+            addWaterBubble(width / 2, height / 2, 40);
         }
 
         function drawSoftWaterWaves() {
-            waveTime += 0.015;
+            waveTime += 0.01;
             ctx.save();
-            ctx.globalAlpha = 0.06;
+            ctx.globalAlpha = 0.05;
             ctx.fillStyle = '#f7d0dc';
 
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            for (let x = 0; x <= width; x += 20) {
-                const y = Math.sin(x * 0.005 + waveTime) * 25 + Math.cos(x * 0.008 + waveTime * 0.8) * 15 + height * 0.3;
+            for (let x = 0; x <= width; x += 30) {
+                const y = Math.sin(x * 0.004 + waveTime) * 20 + Math.cos(x * 0.006 + waveTime * 0.8) * 10 + height * 0.3;
                 ctx.lineTo(x, y);
             }
             ctx.lineTo(width, height);
@@ -689,8 +711,8 @@
         };
 
         window.addEventListener('click', (e) => {
-            if (e.target.tagName !== 'INPUT' && !e.target.isContentEditable) {
-                addWaterBubble(e.clientX, e.clientY, 20);
+            if (e.target.tagName !== 'INPUT' && !e.target.isContentEditable && e.target.tagName !== 'SELECT') {
+                addWaterBubble(e.clientX, e.clientY, 16);
             }
         });
     </script>
