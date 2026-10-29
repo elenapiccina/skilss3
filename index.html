@@ -103,6 +103,25 @@
             box-shadow: 0 8px 20px -4px rgba(224, 122, 147, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.95);
         }
 
+        /* Drag & Drop Visuals */
+        .glass-card[draggable="true"] {
+            cursor: grab;
+        }
+        .glass-card.dragging {
+            opacity: 0.35;
+            transform: scale(0.98);
+        }
+        .category-dropzone {
+            min-height: 48px;
+            transition: all 0.2s ease;
+            border-radius: 14px;
+        }
+        .category-dropzone.drag-over {
+            background: rgba(255, 255, 255, 0.55);
+            border: 2px dashed rgba(224, 122, 147, 0.6);
+            box-shadow: inset 0 0 10px rgba(224, 122, 147, 0.15);
+        }
+
         /* Category Card Tone Variations with Glass Gloss */
         .card-quick {
             background: linear-gradient(135deg, rgba(254, 249, 231, 0.75), rgba(253, 243, 206, 0.45));
@@ -268,6 +287,7 @@
         let state = loadData();
         let activeCategoryToAdd = 'small';
         let activeFilter = 'all';
+        let draggedGoalId = null;
 
         function loadData() {
             const saved = localStorage.getItem('my_aesthetic_goals_v3');
@@ -370,6 +390,52 @@
             if (drawer) drawer.classList.toggle('hidden');
         }
 
+        function changeGoalCategory(id, newCategory, e) {
+            if (e) e.stopPropagation();
+            const goal = state.find(g => g.id === id);
+            if (goal && goal.category !== newCategory) {
+                goal.category = newCategory;
+                saveData();
+            }
+        }
+
+        // Drag and Drop Event Handlers
+        function handleDragStart(e, id) {
+            draggedGoalId = id;
+            e.dataTransfer.setData('text/plain', id.toString());
+            e.dataTransfer.effectAllowed = 'move';
+            e.currentTarget.classList.add('dragging');
+        }
+
+        function handleDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('.category-dropzone').forEach(dz => dz.classList.remove('drag-over'));
+            draggedGoalId = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e, targetCategory) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const id = parseInt(e.dataTransfer.getData('text/plain') || draggedGoalId, 10);
+            if (!id) return;
+
+            const goal = state.find(g => g.id === id);
+            if (goal && goal.category !== targetCategory) {
+                goal.category = targetCategory;
+                saveData();
+            }
+        }
+
         function render() {
             const container = document.getElementById('goals-container');
             container.innerHTML = '';
@@ -400,19 +466,35 @@
 
             groups.forEach(catKey => {
                 const catGoals = filtered.filter(g => activeFilter === 'done' || g.category === catKey);
-                if (catGoals.length === 0) return;
-
                 const catInfo = categories[catKey] || categories.small;
 
+                // Section Wrapper & Header (always rendered in section mode for easy drop targets)
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'flex flex-col gap-1.5 mb-1';
+
                 if (activeFilter === 'all' || activeFilter === 'done') {
-                    const headerEl = document.createElement('div');
-                    headerEl.className = 'flex items-center gap-1.5 pt-1 pb-0.5 px-0.5';
-                    headerEl.innerHTML = `
-                        <span class="font-sans font-medium text-[10px] tracking-wide text-[#6e5662] uppercase">${catInfo.label}</span>
-                        <span class="text-[9px] font-light text-[#8c6d7a] bg-white/80 px-1.5 py-0.2 rounded-full">${catGoals.length}</span>
-                        <div class="flex-grow h-[1px] bg-gradient-to-r from-white/80 to-transparent"></div>
+                    sectionEl.innerHTML = `
+                        <div class="flex items-center gap-1.5 pt-1 pb-0.5 px-0.5">
+                            <span class="font-sans font-medium text-[10px] tracking-wide text-[#6e5662] uppercase">${catInfo.label}</span>
+                            <span class="text-[9px] font-light text-[#8c6d7a] bg-white/80 px-1.5 py-0.2 rounded-full">${catGoals.length}</span>
+                            <div class="flex-grow h-[1px] bg-gradient-to-r from-white/80 to-transparent"></div>
+                            <span class="text-[9px] font-light text-[#a88d98] italic hidden sm:inline">drag items here ↘</span>
+                        </div>
                     `;
-                    container.appendChild(headerEl);
+                }
+
+                // Dropzone area for goals in this category
+                const dropzone = document.createElement('div');
+                dropzone.className = 'category-dropzone flex flex-col gap-2 p-1';
+                dropzone.ondragover = handleDragOver;
+                dropzone.ondragleave = handleDragLeave;
+                dropzone.ondrop = (e) => handleDrop(e, catKey);
+
+                if (catGoals.length === 0 && activeFilter === 'all') {
+                    dropzone.innerHTML = `
+                        <div class="text-center py-2 border border-dashed border-white/60 rounded-xl text-[10px] text-[#a88d98] italic">
+                            Drop goals here to make them ${catInfo.label.split(' ')[1]}
+                        </div>`;
                 }
 
                 catGoals.forEach((goal, idx) => {
@@ -421,15 +503,31 @@
                     const catData = categories[goal.category] || categories.small;
 
                     card.className = `glass-card rounded-xl p-2.5 ${catData.cardClass} ${floatClass} transition-all duration-200 group relative`;
-                    
+                    card.setAttribute('draggable', 'true');
+                    card.ondragstart = (e) => handleDragStart(e, goal.id);
+                    card.ondragend = handleDragEnd;
+
                     if (goal.done) {
                         card.classList.add('opacity-60');
                     }
 
+                    // Options for changing category via dropdown tag click
+                    const otherCats = Object.keys(categories)
+                        .map(k => `<option value="${k}" ${k === goal.category ? 'selected' : ''}>${categories[k].label}</option>`)
+                        .join('');
+
                     card.innerHTML = `
                         <div class="flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2 flex-grow min-w-0 cursor-pointer" onclick="toggleComplete(${goal.id}, event)">
-                                <span class="text-xs flex-shrink-0 bg-white/70 px-1.5 py-0.5 rounded-lg shadow-2xs">${catData.label.split(' ')[0]}</span>
+                                <!-- Category Select Badge -->
+                                <div class="flex-shrink-0 relative group/select" onclick="event.stopPropagation()">
+                                    <select onchange="changeGoalCategory(${goal.id}, this.value, event)" 
+                                            class="appearance-none text-[10px] bg-white/80 hover:bg-white text-[#4a3540] font-medium px-2 py-0.5 pr-3.5 rounded-lg shadow-2xs border border-white/90 outline-none cursor-pointer transition-all">
+                                        ${otherCats}
+                                    </select>
+                                    <span class="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-[#7a5e6a] pointer-events-none">▾</span>
+                                </div>
+
                                 <div class="flex-grow min-w-0">
                                     <h2 contenteditable="true" 
                                         onblur="updateGoalTitle(${goal.id}, this.innerText)" 
@@ -441,6 +539,7 @@
                             </div>
 
                             <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <span class="text-[10px] text-[#9c828e] cursor-grab active:cursor-grabbing px-1 opacity-60 hover:opacity-100" title="Drag to reorder section">⋮⋮</span>
                                 <button onclick="toggleDrawer(${goal.id}, event)" class="text-[10px] font-light text-[#6e5662] bg-white/80 hover:bg-white px-2 py-0.5 rounded-full shadow-2xs transition-all flex items-center gap-0.5 border border-white/60">
                                     <span>⚡ step</span>
                                 </button>
@@ -463,8 +562,11 @@
                             </div>
                         </div>
                     `;
-                    container.appendChild(card);
+                    dropzone.appendChild(card);
                 });
+
+                sectionEl.appendChild(dropzone);
+                container.appendChild(sectionEl);
             });
         }
 
